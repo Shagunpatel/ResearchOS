@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.paper import PaperRead
+from app.schemas.paper import PaperChunkRead, PaperRead
 from app.services.paper_service import PaperService
 
 router = APIRouter(prefix="/papers", tags=["Papers"])
@@ -30,6 +30,18 @@ async def list_papers(
     service = PaperService(db)
     return await service.list_papers(current_user=current_user)
 
+
+@router.get("/{paper_id}/chunks", response_model=list[PaperChunkRead])
+async def list_paper_chunks(
+    paper_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    service = PaperService(db)
+    return await service.list_paper_chunks(
+        paper_id=paper_id,
+        current_user=current_user,
+    )
 
 @router.get("/{paper_id}", response_model=PaperRead)
 async def get_paper(

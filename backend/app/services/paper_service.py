@@ -46,7 +46,7 @@ class PaperService:
             filename=file.filename,
             file_path=str(file_path),
         )
-        
+
         await self.process_paper(paper)
         await self.paper_repository.db.commit()
         await self.paper_repository.db.refresh(paper)
@@ -108,3 +108,16 @@ class PaperService:
         await self.paper_repository.db.commit()
 
         return paper
+    
+
+    async def list_paper_chunks(self, *, paper_id, current_user: User):
+        paper = await self.get_paper(
+            paper_id=paper_id,
+            current_user=current_user,
+        )
+
+        return await self.paper_repository.list_chunks_for_paper(
+            paper_id=paper.id,
+            user_id=current_user.id,
+        )
+    
