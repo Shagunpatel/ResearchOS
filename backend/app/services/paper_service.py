@@ -8,6 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.repositories.paper_repository import PaperRepository
 
+from app.models.paper import PaperStatus
+from app.services.chunking_service import ChunkingService
+from app.services.pdf_service import PDFService
+
 UPLOAD_DIR = Path("storage/uploads")
 
 
@@ -37,11 +41,17 @@ class PaperService:
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        return await self.paper_repository.create(
+        paper = await self.paper_repository.create(
             user_id=current_user.id,
             filename=file.filename,
             file_path=str(file_path),
         )
+        
+        await self.process_paper(paper)
+        await self.paper_repository.db.commit()
+        await self.paper_repository.db.refresh(paper)
+
+        return paper
 
     async def list_papers(self, *, current_user: User):
         return await self.paper_repository.list_by_user(current_user.id)
@@ -70,3 +80,31 @@ class PaperService:
         await self.paper_repository.delete(paper)
 
         return {"message": "Paper deleted successfully"}
+    
+    async def process_paper(self, paper):
+        pdf_service = PDFService()
+        chunking_service = ChunkingService()
+
+        document = pdf_service.extract_document(paper.file_path)
+
+        chunks = chunking_service.chunk_document(document["pages"])
+
+        await self.paper_repository.update_paper_metadata(
+            paper=paper,
+            title=document["title"],
+            authors=document["author"],
+        )
+
+        await self.paper_repository.create_chunks(
+            paper=paper,
+            chunks=chunks,
+        )
+
+        await self.paper_repository.update_status(
+            paper=paper,
+            status=PaperStatus.READY,
+        )
+
+        await self.paper_repository.db.commit()
+
+        return paper

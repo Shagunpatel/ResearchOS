@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.paper import Paper
+from app.models.paper import Paper, PaperChunk, PaperStatus
 
 
 class PaperRepository:
@@ -24,7 +24,7 @@ class PaperRepository:
         )
 
         self.db.add(paper)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(paper)
 
         return paper
@@ -46,6 +46,80 @@ class PaperRepository:
         )
         return result.scalar_one_or_none()
 
+    async def update_paper_metadata(
+        self,
+        *,
+        paper: Paper,
+        title: str | None = None,
+        authors: str | None = None,
+        abstract: str | None = None,
+        year: int | None = None,
+    ) -> Paper:
+        paper.title = title
+        paper.authors = authors
+        paper.abstract = abstract
+        paper.year = year
+
+        await self.db.flush()
+        await self.db.refresh(paper)
+
+        return paper
+
+    async def update_status(
+        self,
+        *,
+        paper: Paper,
+        status: PaperStatus,
+        error_message: str | None = None,
+    ) -> Paper:
+        paper.status = status
+        paper.error_message = error_message
+
+        await self.db.flush()
+        await self.db.refresh(paper)
+
+        return paper
+
+    async def create_chunks(
+        self,
+        *,
+        paper: Paper,
+        chunks: list[dict],
+    ) -> list[PaperChunk]:
+        paper_chunks = [
+            PaperChunk(
+                paper_id=paper.id,
+                user_id=paper.user_id,
+                chunk_index=chunk["chunk_index"],
+                page_number=chunk["page_number"],
+                text=chunk["text"],
+                token_count=chunk["token_count"],
+            )
+            for chunk in chunks
+        ]
+
+        self.db.add_all(paper_chunks)
+        await self.db.flush()
+
+        return paper_chunks
+
+    async def list_chunks_for_paper(
+        self,
+        *,
+        paper_id: UUID,
+        user_id: UUID,
+    ) -> list[PaperChunk]:
+        result = await self.db.execute(
+            select(PaperChunk)
+            .where(
+                PaperChunk.paper_id == paper_id,
+                PaperChunk.user_id == user_id,
+            )
+            .order_by(PaperChunk.chunk_index.asc())
+        )
+
+        return list(result.scalars().all())
+
     async def delete(self, paper: Paper) -> None:
         await self.db.delete(paper)
-        await self.db.commit()
+        await self.db.flush()
