@@ -11,6 +11,7 @@ from app.repositories.paper_repository import PaperRepository
 from app.models.paper import PaperStatus
 from app.services.chunking_service import ChunkingService
 from app.services.pdf_service import PDFService
+from app.ai.vectorstore.qdrant_service import QdrantService
 
 UPLOAD_DIR = Path("storage/uploads")
 
@@ -47,9 +48,11 @@ class PaperService:
             file_path=str(file_path),
         )
 
-        await self.process_paper(paper)
         await self.paper_repository.db.commit()
         await self.paper_repository.db.refresh(paper)
+
+        from app.tasks.ingestion_tasks import process_paper_task
+        process_paper_task.delay(str(paper.id))
 
         return paper
 
@@ -95,10 +98,32 @@ class PaperService:
             authors=document["author"],
         )
 
-        await self.paper_repository.create_chunks(
+        paper_chunks = await self.paper_repository.create_chunks(
             paper=paper,
             chunks=chunks,
         )
+
+        qdrant_service = QdrantService()
+
+        qdrant_chunks = [
+            {
+                "point_id": str(chunk.id),
+                "text": chunk.text,
+                "payload": {
+                    "user_id": str(chunk.user_id),
+                    "paper_id": str(chunk.paper_id),
+                    "chunk_id": str(chunk.id),
+                    "title": paper.title or paper.filename,
+                    "filename": paper.filename,
+                    "page_number": chunk.page_number,
+                    "chunk_index": chunk.chunk_index,
+                    "text": chunk.text,
+                },
+            }
+            for chunk in paper_chunks
+        ]
+
+        qdrant_service.upsert_chunks(chunks=qdrant_chunks)
 
         await self.paper_repository.update_status(
             paper=paper,
