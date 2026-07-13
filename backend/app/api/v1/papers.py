@@ -43,6 +43,7 @@ async def list_paper_chunks(
         current_user=current_user,
     )
 
+
 @router.get("/{paper_id}", response_model=PaperRead)
 async def get_paper(
     paper_id: UUID,
