@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+**/.venv/
+venv/
+**/venv/
+
+# Ignore real environment files
+.env
+**/.env
+
+# Ignore all env variants except the example template
+.env.*
+**/.env.*
+
+# Keep example files
+!.env.example
+!**/.env.example
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Node
+node_modules/
+.next/
+
+# Storage files
+backend/storage/uploads/*
+backend/storage/temp/*
+backend/storage/thumbnails/*
+!backend/storage/uploads/.gitkeep
+!backend/storage/temp/.gitkeep
+!backend/storage/thumbnails/.gitkeep
+
+# Logs
+*.log
