@@ -10,6 +10,7 @@ from app.schemas.paper import PaperChunkRead, PaperRead
 from app.services.paper_service import PaperService
 from app.schemas.paper_analysis import PaperSummaryResponse
 from app.services.paper_analysis_service import PaperAnalysisService
+from app.services.paper_profile_service import PaperProfileService
 
 router = APIRouter(prefix="/papers", tags=["Papers"])
 
@@ -58,6 +59,19 @@ async def summarize_paper(
         current_user=current_user,
     )
     
+@router.post("/{paper_id}/profile")
+async def generate_paper_profile(
+    paper_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    service = PaperProfileService(db)
+
+    return await service.generate_profile(
+        paper_id=paper_id,
+        current_user=current_user,
+    )
+
 @router.get("/{paper_id}", response_model=PaperRead)
 async def get_paper(
     paper_id: UUID,

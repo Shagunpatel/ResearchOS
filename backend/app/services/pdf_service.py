@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import fitz  # PyMuPDF
-
+from app.utils.text import clean_text
 
 class PDFService:
     """
@@ -21,7 +21,7 @@ class PDFService:
         pages = []
 
         for page_number, page in enumerate(document, start=1):
-            text = page.get_text("text").strip()
+            text = clean_text(page.get_text("text"))
 
             pages.append(
                 {

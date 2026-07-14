@@ -22,6 +22,14 @@ class PaperAnalysisService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Paper not found",
             )
+        
+        if paper.summary:
+            return PaperSummaryResponse(
+                paper_id=str(paper.id),
+                title=paper.title or paper.filename,
+                filename=paper.filename,
+                summary=paper.summary,
+            )
 
         chunks = await self.paper_repository.list_chunks_for_paper(
             paper_id=paper.id,
@@ -36,35 +44,26 @@ class PaperAnalysisService:
                     "references",
                     "biography",
                     "author biography",
-                    "received",
-                    "accepted",
                     "corresponding author",
+                    "acknowledgement",
+                    "acknowledgments",
                 ]
             )
         ]
 
-        section_summaries = []
+        paper_text = "\n\n".join(chunk.text for chunk in filtered_chunks[:30])
 
-        for i in range(0, min(len(filtered_chunks), 40), 5):
-            chunk_group = filtered_chunks[i : i + 5]
-            group_text = "\n\n".join(chunk.text for chunk in chunk_group)
+        if not paper_text.strip():
+            paper_text = "\n\n".join(chunk.text for chunk in chunks[:20])
 
-            section_prompt = f"""
-        Summarize the research content below in 5 bullet points.
-        Ignore author names, references, metadata, and biographies.
-
-        Text:
-        {group_text}
-        """
-
-            section_summaries.append(self.llm.generate(prompt=section_prompt))
-
-        combined_summary_notes = "\n\n".join(section_summaries)
-
-        final_prompt = f"""
+        prompt = f"""
         You are ResearchOS, an AI research assistant.
 
-        Using the section notes below, write a coherent summary of the whole paper.
+        Summarize the RESEARCH CONTENT of the paper below.
+
+        Do not ask for more information.
+        Do not summarize author biographies, references, affiliations, or metadata.
+        Do not say "section notes" or "provided text".
 
         Return exactly this structure:
 
@@ -77,17 +76,20 @@ class PaperAnalysisService:
         7. Future work
         8. Plain-English summary
 
-        If a section is not explicitly discussed, write
+        If something is not discussed, write "Not discussed".
 
-        "Not discussed in this paper."
-
-        instead of making assumptions.
-
-        Section notes:
-        {combined_summary_notes}
+        Paper text:
+        {paper_text}
         """
 
-        summary = self.llm.generate(prompt=final_prompt)
+        summary = self.llm.generate(prompt=prompt)
+
+        await self.paper_repository.update_summary(
+            paper=paper,
+            summary=summary,
+        )
+
+        await self.paper_repository.db.commit()
 
         return PaperSummaryResponse(
             paper_id=str(paper.id),

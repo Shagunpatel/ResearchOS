@@ -12,6 +12,8 @@ class PaperRead(BaseModel):
     authors: str | None = None
     year: int | None = None
     abstract: str | None = None
+    summary: str | None = None
+    profile: dict | None = None
     filename: str
     status: PaperStatus
     error_message: str | None = None

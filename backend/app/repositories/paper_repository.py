@@ -123,3 +123,29 @@ class PaperRepository:
     async def delete(self, paper: Paper) -> None:
         await self.db.delete(paper)
         await self.db.flush()
+
+    async def update_summary(
+        self,
+        *,
+        paper: Paper,
+        summary: str,
+    ) -> Paper:
+        paper.summary = summary
+
+        await self.db.flush()
+        await self.db.refresh(paper)
+
+        return paper
+    
+    async def update_profile(
+        self,
+        *,
+        paper: Paper,
+        profile: dict,
+    ) -> Paper:
+        paper.profile = profile
+
+        await self.db.flush()
+        await self.db.refresh(paper)
+
+        return paper

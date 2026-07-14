@@ -12,15 +12,21 @@ class OllamaProvider(LLMProvider):
         self.model = model
         self.base_url = base_url
 
-    def generate(self, *, prompt: str) -> str:
+    def generate(self, *, prompt: str, json_mode: bool = False) -> str:
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+        }
+
+        if json_mode:
+            payload["format"] = "json"
+
         response = httpx.post(
             f"{self.base_url}/api/generate",
-            json={
-                "model": self.model,
-                "prompt": prompt,
-                "stream": False,
-            },
+            json=payload,
             timeout=120,
         )
         response.raise_for_status()
+        print("app/ai/llm/ollama_provider response: ",response.json())
         return response.json()["response"]
