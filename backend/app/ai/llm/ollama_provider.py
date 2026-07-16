@@ -28,5 +28,4 @@ class OllamaProvider(LLMProvider):
             timeout=120,
         )
         response.raise_for_status()
-        print("app/ai/llm/ollama_provider response: ",response.json())
         return response.json()["response"]
