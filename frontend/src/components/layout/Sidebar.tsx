@@ -15,7 +15,7 @@ const navItems = [
   { label: "Library", href: "/dashboard/papers", icon: BookOpen },
   { label: "Upload", href: "/dashboard/upload", icon: Upload },
   { label: "Research Chat", href: "/dashboard/chat", icon: MessageSquare },
-  { label: "Compare", href: "/dashboard/compare", icon: GitCompare },
+  { label: "Research Studio", href: "/dashboard/research", icon: GitCompare },
   { label: "Experiments", href: "/dashboard/experiments", icon: FlaskConical },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];

@@ -31,8 +31,26 @@ export class PaperService {
   static async comparePapers(paperIds: string[]) {
     return apiFetch("/research/compare", {
       method: "POST",
+      body: JSON.stringify({ paper_ids: paperIds }),
+    });
+  }
+
+  static async generateRelatedWork(paperIds: string[], topic?: string) {
+    return apiFetch("/research/related-work", {
+      method: "POST",
       body: JSON.stringify({
         paper_ids: paperIds,
+        topic: topic || null,
+      }),
+    });
+  }
+
+  static async findResearchGaps(paperIds: string[], topic?: string) {
+    return apiFetch("/research/gaps", {
+      method: "POST",
+      body: JSON.stringify({
+        paper_ids: paperIds,
+        topic: topic || null,
       }),
     });
   }
