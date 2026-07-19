@@ -31,11 +31,16 @@ export class PaperService {
   static async comparePapers(paperIds: string[]) {
     return apiFetch("/research/compare", {
       method: "POST",
-      body: JSON.stringify({ paper_ids: paperIds }),
+      body: JSON.stringify({
+        paper_ids: paperIds,
+      }),
     });
   }
 
-  static async generateRelatedWork(paperIds: string[], topic?: string) {
+  static async generateRelatedWork(
+    paperIds: string[],
+    topic?: string
+  ) {
     return apiFetch("/research/related-work", {
       method: "POST",
       body: JSON.stringify({
@@ -45,13 +50,22 @@ export class PaperService {
     });
   }
 
-  static async findResearchGaps(paperIds: string[], topic?: string) {
+  static async findResearchGaps(
+    paperIds: string[],
+    topic?: string
+  ) {
     return apiFetch("/research/gaps", {
       method: "POST",
       body: JSON.stringify({
         paper_ids: paperIds,
         topic: topic || null,
       }),
+    });
+  }
+
+  static async deletePaper(paperId: string) {
+    return apiFetch(`/papers/${paperId}`, {
+      method: "DELETE",
     });
   }
 
@@ -73,7 +87,16 @@ export class PaperService {
     );
 
     if (!response.ok) {
-      throw new Error("Upload failed");
+      let message = "Upload failed";
+
+      try {
+        const data = await response.json();
+        message = data.detail || message;
+      } catch {
+        // Preserve the default error message.
+      }
+
+      throw new Error(message);
     }
 
     return response.json();

@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from sqlalchemy import delete as sqlalchemy_delete
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,15 +36,21 @@ class PaperRepository:
             .where(Paper.user_id == user_id)
             .order_by(Paper.uploaded_at.desc())
         )
+
         return list(result.scalars().all())
 
-    async def get_by_id_for_user(self, paper_id: UUID, user_id: UUID) -> Paper | None:
+    async def get_by_id_for_user(
+        self,
+        paper_id: UUID,
+        user_id: UUID,
+    ) -> Paper | None:
         result = await self.db.execute(
             select(Paper).where(
                 Paper.id == paper_id,
                 Paper.user_id == user_id,
             )
         )
+
         return result.scalar_one_or_none()
 
     async def update_paper_metadata(
@@ -120,6 +127,21 @@ class PaperRepository:
 
         return list(result.scalars().all())
 
+    async def delete_chunks_for_paper(
+        self,
+        *,
+        paper_id: UUID,
+        user_id: UUID,
+    ) -> None:
+        await self.db.execute(
+            sqlalchemy_delete(PaperChunk).where(
+                PaperChunk.paper_id == paper_id,
+                PaperChunk.user_id == user_id,
+            )
+        )
+
+        await self.db.flush()
+
     async def delete(self, paper: Paper) -> None:
         await self.db.delete(paper)
         await self.db.flush()
@@ -136,7 +158,7 @@ class PaperRepository:
         await self.db.refresh(paper)
 
         return paper
-    
+
     async def update_profile(
         self,
         *,

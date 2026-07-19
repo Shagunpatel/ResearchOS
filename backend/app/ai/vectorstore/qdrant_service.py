@@ -1,5 +1,13 @@
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    FilterSelector,
+    MatchValue,
+    PointStruct,
+    VectorParams,
+)
 
 from app.ai.embeddings.factory import get_embedding_provider
 
@@ -11,18 +19,25 @@ class QdrantService:
         self.client = QdrantClient(url="http://localhost:6333")
         self.embedding_provider = get_embedding_provider()
 
-    def ensure_collection(self) -> None:
+    def collection_exists(self) -> bool:
         collections = self.client.get_collections().collections
-        collection_names = [collection.name for collection in collections]
 
-        if COLLECTION_NAME not in collection_names:
-            self.client.create_collection(
-                collection_name=COLLECTION_NAME,
-                vectors_config=VectorParams(
-                    size=self.embedding_provider.dimension(),
-                    distance=Distance.COSINE,
-                ),
-            )
+        return any(
+            collection.name == COLLECTION_NAME
+            for collection in collections
+        )
+
+    def ensure_collection(self) -> None:
+        if self.collection_exists():
+            return
+
+        self.client.create_collection(
+            collection_name=COLLECTION_NAME,
+            vectors_config=VectorParams(
+                size=self.embedding_provider.dimension(),
+                distance=Distance.COSINE,
+            ),
+        )
 
     def upsert_chunk(
         self,
@@ -53,23 +68,53 @@ class QdrantService:
     ) -> None:
         self.ensure_collection()
 
+        if not chunks:
+            return
+
         texts = [chunk["text"] for chunk in chunks]
         vectors = self.embedding_provider.embed_texts(texts)
 
-        points = []
-
-        for chunk, vector in zip(chunks, vectors):
-            points.append(
-                PointStruct(
-                    id=chunk["point_id"],
-                    vector=vector,
-                    payload=chunk["payload"],
-                )
+        points = [
+            PointStruct(
+                id=chunk["point_id"],
+                vector=vector,
+                payload=chunk["payload"],
             )
+            for chunk, vector in zip(chunks, vectors)
+        ]
 
         self.client.upsert(
             collection_name=COLLECTION_NAME,
             points=points,
+            wait=True,
+        )
+
+    def delete_paper_chunks(
+        self,
+        *,
+        paper_id: str,
+        user_id: str,
+    ) -> None:
+        if not self.collection_exists():
+            return
+
+        self.client.delete(
+            collection_name=COLLECTION_NAME,
+            points_selector=FilterSelector(
+                filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="paper_id",
+                            match=MatchValue(value=paper_id),
+                        ),
+                        FieldCondition(
+                            key="user_id",
+                            match=MatchValue(value=user_id),
+                        ),
+                    ]
+                )
+            ),
+            wait=True,
         )
 
     def search(

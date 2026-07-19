@@ -5,22 +5,27 @@ from pathlib import Path
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.vectorstore.qdrant_service import QdrantService
+from app.models.paper import PaperStatus
 from app.models.user import User
 from app.repositories.paper_repository import PaperRepository
-
-from app.models.paper import PaperStatus
 from app.services.chunking_service import ChunkingService
 from app.services.pdf_service import PDFService
-from app.ai.vectorstore.qdrant_service import QdrantService
 
 UPLOAD_DIR = Path("storage/uploads")
 
 
 class PaperService:
     def __init__(self, db: AsyncSession):
+        self.db = db
         self.paper_repository = PaperRepository(db)
 
-    async def upload_paper(self, *, file: UploadFile, current_user: User):
+    async def upload_paper(
+        self,
+        *,
+        file: UploadFile,
+        current_user: User,
+    ):
         if not file.filename:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -35,7 +40,12 @@ class PaperService:
 
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-        safe_filename = file.filename.replace("/", "_").replace("\\", "_")
+        safe_filename = (
+            file.filename
+            .replace("/", "_")
+            .replace("\\", "_")
+        )
+
         stored_filename = f"{uuid.uuid4()}_{safe_filename}"
         file_path = UPLOAD_DIR / stored_filename
 
@@ -48,18 +58,26 @@ class PaperService:
             file_path=str(file_path),
         )
 
-        await self.paper_repository.db.commit()
-        await self.paper_repository.db.refresh(paper)
+        await self.db.commit()
+        await self.db.refresh(paper)
 
         from app.tasks.ingestion_tasks import process_paper_task
+
         process_paper_task.delay(str(paper.id))
 
         return paper
 
     async def list_papers(self, *, current_user: User):
-        return await self.paper_repository.list_by_user(current_user.id)
+        return await self.paper_repository.list_by_user(
+            current_user.id
+        )
 
-    async def get_paper(self, *, paper_id, current_user: User):
+    async def get_paper(
+        self,
+        *,
+        paper_id,
+        current_user: User,
+    ):
         paper = await self.paper_repository.get_by_id_for_user(
             paper_id=paper_id,
             user_id=current_user.id,
@@ -73,23 +91,57 @@ class PaperService:
 
         return paper
 
-    async def delete_paper(self, *, paper_id, current_user: User):
-        paper = await self.get_paper(paper_id=paper_id, current_user=current_user)
+    async def delete_paper(
+        self,
+        *,
+        paper_id,
+        current_user: User,
+    ):
+        paper = await self.get_paper(
+            paper_id=paper_id,
+            current_user=current_user,
+        )
 
         file_path = Path(paper.file_path)
+
+        try:
+            qdrant_service = QdrantService()
+
+            qdrant_service.delete_paper_chunks(
+                paper_id=str(paper.id),
+                user_id=str(current_user.id),
+            )
+
+            await self.paper_repository.delete_chunks_for_paper(
+                paper_id=paper.id,
+                user_id=current_user.id,
+            )
+
+            await self.paper_repository.delete(paper)
+            await self.db.commit()
+
+        except Exception:
+            await self.db.rollback()
+            raise
+
         if file_path.exists():
-            file_path.unlink()
+            try:
+                file_path.unlink()
+            except OSError:
+                # Database and vector cleanup have succeeded.
+                # A leftover local file should not fail the request.
+                pass
 
-        await self.paper_repository.delete(paper)
+        return {
+            "message": "Paper deleted successfully",
+            "paper_id": str(paper_id),
+        }
 
-        return {"message": "Paper deleted successfully"}
-    
     async def process_paper(self, paper):
         pdf_service = PDFService()
         chunking_service = ChunkingService()
 
         document = pdf_service.extract_document(paper.file_path)
-
         chunks = chunking_service.chunk_document(document["pages"])
 
         await self.paper_repository.update_paper_metadata(
@@ -130,12 +182,16 @@ class PaperService:
             status=PaperStatus.READY,
         )
 
-        await self.paper_repository.db.commit()
+        await self.db.commit()
 
         return paper
-    
 
-    async def list_paper_chunks(self, *, paper_id, current_user: User):
+    async def list_paper_chunks(
+        self,
+        *,
+        paper_id,
+        current_user: User,
+    ):
         paper = await self.get_paper(
             paper_id=paper_id,
             current_user=current_user,
@@ -145,4 +201,3 @@ class PaperService:
             paper_id=paper.id,
             user_id=current_user.id,
         )
-    
