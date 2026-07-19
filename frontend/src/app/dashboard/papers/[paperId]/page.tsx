@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { Brain, FileText, MessageSquare, Sparkles } from "lucide-react";
 import { PaperService } from "@/services/paper.service";
 import type { Paper } from "@/types/paper";
-
-type Tab = "summary" | "chat" | "profile" | "compare";
 
 export default function PaperDetailsPage() {
   const params = useParams();
@@ -21,9 +21,7 @@ export default function PaperDetailsPage() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
-
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<Tab>("summary");
 
   async function loadPaper() {
     try {
@@ -81,126 +79,139 @@ export default function PaperDetailsPage() {
     loadPaper();
   }, [paperId]);
 
-  if (loading) return <div className="text-zinc-400">Loading paper...</div>;
+  if (loading) return <div className="text-zinc-400">Loading workspace...</div>;
   if (error) return <div className="text-red-400">{error}</div>;
   if (!paper) return <div className="text-zinc-400">Paper not found.</div>;
 
   return (
-    <div>
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-        <p className="text-sm text-zinc-400">Paper Workspace</p>
+    <div className="max-w-5xl">
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+        <p className="text-sm text-zinc-400">Research Workspace</p>
+
         <h1 className="mt-2 text-3xl font-bold">
           {paper.title || paper.filename}
         </h1>
 
         <div className="mt-4 flex flex-wrap gap-3 text-sm text-zinc-400">
-          <span>Filename: {paper.filename}</span>
+          <span>{paper.filename}</span>
+          <span>•</span>
           <span>Status: {paper.status}</span>
-          <span>Uploaded: {new Date(paper.uploaded_at).toLocaleString()}</span>
+          <span>•</span>
+          <span>{new Date(paper.uploaded_at).toLocaleString()}</span>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            onClick={generateSummary}
+            disabled={summaryLoading || paper.status !== "ready"}
+            className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
+          >
+            {summaryLoading ? "Generating..." : "Generate Summary"}
+          </button>
+
+          <button
+            onClick={generateProfile}
+            disabled={profileLoading || paper.status !== "ready"}
+            className="rounded-lg border border-zinc-700 px-4 py-2 text-sm disabled:opacity-50"
+          >
+            {profileLoading ? "Generating..." : "Generate Profile"}
+          </button>
+
+          <Link
+            href="/dashboard/research"
+            className="rounded-lg border border-zinc-700 px-4 py-2 text-sm"
+          >
+            Open Research Studio
+          </Link>
+        </div>
+      </section>
+
+      <WorkspaceSection
+        icon={<FileText className="h-5 w-5" />}
+        title="AI Summary"
+        description="A structured overview of the paper."
+      >
+        <div className="whitespace-pre-wrap rounded-xl bg-black p-5 text-sm leading-7 text-zinc-200">
+          {summary || "No summary yet. Click Generate Summary above."}
+        </div>
+      </WorkspaceSection>
+
+      <WorkspaceSection
+        icon={<MessageSquare className="h-5 w-5" />}
+        title="Ask ResearchOS"
+        description="Ask questions about your uploaded research library."
+      >
+        <textarea
+          value={chatQuestion}
+          onChange={(e) => setChatQuestion(e.target.value)}
+          placeholder="Example: What problem does this paper solve?"
+          className="min-h-28 w-full rounded-xl border border-zinc-700 bg-black p-4 text-sm text-white outline-none"
+        />
+
+        <button
+          onClick={askQuestion}
+          disabled={chatLoading}
+          className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
+        >
+          {chatLoading ? "Thinking..." : "Ask"}
+        </button>
+
+        {chatAnswer && (
+          <div className="mt-6 whitespace-pre-wrap rounded-xl bg-black p-5 text-sm leading-7 text-zinc-200">
+            {chatAnswer}
+          </div>
+        )}
+      </WorkspaceSection>
+
+      <WorkspaceSection
+        icon={<Brain className="h-5 w-5" />}
+        title="AI Paper Profile"
+        description="Problem, methodology, datasets, findings, limitations, and future work."
+      >
+        <div className="whitespace-pre-wrap rounded-xl bg-black p-5 text-sm leading-7 text-zinc-200">
+          {profile || "No profile yet. Click Generate Profile above."}
+        </div>
+      </WorkspaceSection>
+
+      <WorkspaceSection
+        icon={<Sparkles className="h-5 w-5" />}
+        title="Next Step"
+        description="Use this paper with other papers in Research Studio."
+      >
+        <Link
+          href="/dashboard/research"
+          className="inline-flex rounded-lg bg-white px-4 py-2 text-sm font-medium text-black"
+        >
+          Go to Research Studio
+        </Link>
+      </WorkspaceSection>
+    </div>
+  );
+}
+
+function WorkspaceSection({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+      <div className="mb-5 flex items-start gap-3">
+        <div className="rounded-lg bg-black p-2 text-zinc-300">{icon}</div>
+
+        <div>
+          <h2 className="text-xl font-semibold">{title}</h2>
+          <p className="mt-1 text-sm text-zinc-400">{description}</p>
         </div>
       </div>
 
-      <div className="mt-6 flex gap-3 border-b border-zinc-800">
-        {(["summary", "chat", "profile", "compare"] as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-3 text-sm capitalize ${
-              activeTab === tab
-                ? "border-b-2 border-white font-semibold text-white"
-                : "text-zinc-400"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === "summary" && (
-        <section className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold">AI Summary</h2>
-              <p className="text-sm text-zinc-400">
-                Generate a structured summary of this paper.
-              </p>
-            </div>
-
-            <button
-              onClick={generateSummary}
-              disabled={summaryLoading || paper.status !== "ready"}
-              className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
-            >
-              {summaryLoading ? "Generating..." : "Generate Summary"}
-            </button>
-          </div>
-
-          <div className="mt-6 whitespace-pre-wrap rounded-lg bg-black p-5 text-sm leading-7 text-zinc-200">
-            {summary || "No summary yet. Click Generate Summary."}
-          </div>
-        </section>
-      )}
-
-      {activeTab === "chat" && (
-        <section className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-          <h2 className="text-xl font-semibold">Ask ResearchOS</h2>
-          <p className="text-sm text-zinc-400">
-            Ask a citation-grounded question across your uploaded papers.
-          </p>
-
-          <textarea
-            value={chatQuestion}
-            onChange={(e) => setChatQuestion(e.target.value)}
-            placeholder="Example: What dataset is used in this paper?"
-            className="mt-6 min-h-28 w-full rounded-lg border border-zinc-700 bg-black p-4 text-sm text-white outline-none"
-          />
-
-          <button
-            onClick={askQuestion}
-            disabled={chatLoading}
-            className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
-          >
-            {chatLoading ? "Thinking..." : "Ask"}
-          </button>
-
-          {chatAnswer && (
-            <div className="mt-6 whitespace-pre-wrap rounded-lg bg-black p-5 text-sm leading-7 text-zinc-200">
-              {chatAnswer}
-            </div>
-          )}
-        </section>
-      )}
-
-      {activeTab === "profile" && (
-        <section className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold">AI Paper Profile</h2>
-              <p className="text-sm text-zinc-400">
-                Extract problem, methods, datasets, results, and limitations.
-              </p>
-            </div>
-
-            <button
-              onClick={generateProfile}
-              disabled={profileLoading || paper.status !== "ready"}
-              className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50"
-            >
-              {profileLoading ? "Generating..." : "Generate Profile"}
-            </button>
-          </div>
-
-          <div className="mt-6 whitespace-pre-wrap rounded-lg bg-black p-5 text-sm leading-7 text-zinc-200">
-            {profile || "No profile yet. Click Generate Profile."}
-          </div>
-        </section>
-      )}
-
-      {activeTab === "compare" && (
-        <section className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-          Compare coming next.
-        </section>
-      )}
-    </div>
+      {children}
+    </section>
   );
 }

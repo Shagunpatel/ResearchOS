@@ -1,22 +1,17 @@
 import Link from "next/link";
 import {
-  BarChart3,
   BookOpen,
-  GitCompare,
+  Brain,
   Home,
-  MessageSquare,
   Settings,
   Upload,
-  FlaskConical,
 } from "lucide-react";
 
 const navItems = [
-  { label: "Home", href: "/dashboard", icon: Home },
+  { label: "Dashboard", href: "/dashboard", icon: Home },
   { label: "Library", href: "/dashboard/papers", icon: BookOpen },
+  { label: "Research Studio", href: "/dashboard/research", icon: Brain },
   { label: "Upload", href: "/dashboard/upload", icon: Upload },
-  { label: "Research Chat", href: "/dashboard/chat", icon: MessageSquare },
-  { label: "Research Studio", href: "/dashboard/research", icon: GitCompare },
-  { label: "Experiments", href: "/dashboard/experiments", icon: FlaskConical },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -24,16 +19,8 @@ export function Sidebar() {
   return (
     <aside className="w-64 min-h-screen border-r border-zinc-800 bg-black p-5">
       <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-black">
-            <BarChart3 size={20} />
-          </div>
-
-          <div>
-            <h1 className="font-bold text-white">ResearchOS</h1>
-            <p className="text-xs text-zinc-400">AI Research Copilot</p>
-          </div>
-        </div>
+        <h1 className="font-bold text-white">ResearchOS</h1>
+        <p className="mt-1 text-xs text-zinc-400">AI Research Platform</p>
       </div>
 
       <nav className="mt-6 space-y-1">

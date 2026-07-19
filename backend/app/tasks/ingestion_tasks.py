@@ -16,11 +16,18 @@ def process_paper_task(paper_id: str) -> None:
 
 async def _process_paper_async(paper_id: str) -> None:
     async with AsyncSessionLocal() as db:
-        result = await db.execute(select(Paper).where(Paper.id == UUID(paper_id)))
-        paper = result.scalar_one_or_none()
+        try:
+            result = await db.execute(
+                select(Paper).where(Paper.id == UUID(paper_id))
+            )
+            paper = result.scalar_one_or_none()
 
-        if paper is None:
-            return
+            if paper is None:
+                return
 
-        service = PaperService(db)
-        await service.process_paper(paper)
+            service = PaperService(db)
+            await service.process_paper(paper)
+
+        except Exception:
+            await db.rollback()
+            raise
