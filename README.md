@@ -7,7 +7,7 @@ ResearchOS provides an end-to-end workflow for uploading research papers, genera
 ---
 ## Live Demo
 
-🎥 **[Watch the Demo Video](ttps://drive.google.com/file/d/1Hg8GaY1zn21ZDt8BZvaG7_lV4yJ-xnbj/view?usp=share_link)**
+🎥 **[Watch the Demo Video](https://drive.google.com/file/d/1Hg8GaY1zn21ZDt8BZvaG7_lV4yJ-xnbj/view?usp=share_link)**
 
 ---
 
